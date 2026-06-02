@@ -480,23 +480,13 @@ public class NewRandomizerGUI {
         websiteLinkLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                Desktop desktop = java.awt.Desktop.getDesktop();
-                try {
-                    desktop.browse(new URI(SysConstants.WEBSITE_URL_ZX));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                openWebpage(SysConstants.WEBSITE_URL_ZX);
             }
         });
         wikiLinkLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                Desktop desktop = java.awt.Desktop.getDesktop();
-                try {
-                    desktop.browse(new URI(SysConstants.WIKI_URL_ZX));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                openWebpage(SysConstants.WIKI_URL_ZX);
             }
         });
         randomizeSaveButton.addActionListener(e -> saveROM());
@@ -588,12 +578,7 @@ public class NewRandomizerGUI {
             label.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    Desktop desktop = java.awt.Desktop.getDesktop();
-                    try {
-                        desktop.browse(new URI("https://github.com/Ajarmar/universal-pokemon-randomizer-zx/wiki/Important-Information"));
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
+                    openWebpage("https://github.com/Ajarmar/universal-pokemon-randomizer-zx/wiki/Important-Information");
                 }
             });
             label.setCursor(new java.awt.Cursor(Cursor.HAND_CURSOR));
@@ -1227,12 +1212,7 @@ public class NewRandomizerGUI {
             label.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    Desktop desktop = java.awt.Desktop.getDesktop();
-                    try {
-                        desktop.browse(new URI("https://github.com/Ajarmar/universal-pokemon-randomizer-zx/wiki/Randomizing-the-3DS-games#changes-to-saving-a-rom-when-working-with-3ds-games"));
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
+                    openWebpage("https://github.com/Ajarmar/universal-pokemon-randomizer-zx/wiki/Randomizing-the-3DS-games#changes-to-saving-a-rom-when-working-with-3ds-games");
                 }
             });
             label.setCursor(new java.awt.Cursor(Cursor.HAND_CURSOR));
@@ -1387,17 +1367,60 @@ public class NewRandomizerGUI {
         label.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                Desktop desktop = java.awt.Desktop.getDesktop();
-                try {
-                    desktop.browse(new URI(url));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                openWebpage(url);
             }
         });
         label.setCursor(new java.awt.Cursor(Cursor.HAND_CURSOR));
         Object[] messages = {text,label};
         JOptionPane.showMessageDialog(frame, messages);
+    }
+
+    /**
+     * Opens a URL in the user's browser. Desktop.browse() is unsupported on many
+     * Linux setups (it throws UnsupportedOperationException), so fall back to the
+     * platform's URL opener, and finally to showing the link for manual copying.
+     */
+    private void openWebpage(String url) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    desktop.browse(new URI(url));
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            // Fall through to the platform-specific opener.
+        }
+
+        if (openWebpageWithPlatformCommand(url)) {
+            return;
+        }
+
+        // Last resort: show the URL so the user can copy it manually.
+        JTextField urlField = new JTextField(url);
+        urlField.setEditable(false);
+        urlField.setCaretPosition(0);
+        JOptionPane.showMessageDialog(frame, urlField,
+                "Could not open a browser - copy this link:", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private boolean openWebpageWithPlatformCommand(String url) {
+        String os = System.getProperty("os.name").toLowerCase();
+        String[] command;
+        if (os.contains("win")) {
+            command = new String[] {"rundll32", "url.dll,FileProtocolHandler", url};
+        } else if (os.contains("mac")) {
+            command = new String[] {"open", url};
+        } else {
+            command = new String[] {"xdg-open", url};
+        }
+        try {
+            new ProcessBuilder(command).start();
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private void batchRandomizationSettingsDialog() {
