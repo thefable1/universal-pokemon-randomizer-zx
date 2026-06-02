@@ -1,25 +1,28 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { open, save } from "@tauri-apps/plugin-dialog";
-  import {
-    encode,
-    randomize,
-    health,
-    defaultSettings,
-    type SettingsRequest,
-    type BaseStatsMod,
-    type TypesMod,
-  } from "$lib/bridge";
+  import { encode, randomize, health, defaultSettings, type SettingsRequest } from "$lib/bridge";
+  import { TABS } from "$lib/options";
+  import Traits from "$lib/tabs/Traits.svelte";
+  import Starters from "$lib/tabs/Starters.svelte";
+  import Moves from "$lib/tabs/Moves.svelte";
+  import Foes from "$lib/tabs/Foes.svelte";
+  import Wild from "$lib/tabs/Wild.svelte";
+  import TMs from "$lib/tabs/TMs.svelte";
+  import Items from "$lib/tabs/Items.svelte";
+  import Misc from "$lib/tabs/Misc.svelte";
+
+  const COMPONENTS: Record<string, any> = {
+    traits: Traits, starters: Starters, moves: Moves, foes: Foes,
+    wild: Wild, tms: TMs, items: Items, misc: Misc,
+  };
 
   let settings = $state<SettingsRequest>(defaultSettings());
-
-  // Reactive derived state — this is the whole point vs. Swing's manual wiring.
-  let statsRandomized = $derived(settings.baseStatsMod === "RANDOM");
-  let typesRandomized = $derived(settings.typesMod !== "UNCHANGED");
+  let active = $state<string>("traits");
+  let ActiveTab = $derived(COMPONENTS[active]);
 
   let engineVersion = $state<string | null>(null);
   let connError = $state<string | null>(null);
-
   let romPath = $state<string | null>(null);
   let outputPath = $state<string | null>(null);
   let settingsString = $state("");
@@ -27,215 +30,102 @@
   let error = $state<string | null>(null);
   let busy = $state(false);
 
-  const baseStatsOptions: { value: BaseStatsMod; label: string }[] = [
-    { value: "UNCHANGED", label: "Unchanged" },
-    { value: "SHUFFLE", label: "Shuffle" },
-    { value: "RANDOM", label: "Random" },
-  ];
-  const typesOptions: { value: TypesMod; label: string }[] = [
-    { value: "UNCHANGED", label: "Unchanged" },
-    { value: "RANDOM_FOLLOW_EVOLUTIONS", label: "Random (follow evolutions)" },
-    { value: "COMPLETELY_RANDOM", label: "Random (completely)" },
-  ];
-
   onMount(async () => {
     try {
       engineVersion = (await health()).engineVersion;
-    } catch (e) {
-      connError = "Cannot reach the engine bridge. Start it with: ./gradlew :web-bridge:run";
+    } catch {
+      connError = "Bridge offline — run: ./gradlew :web-bridge:run";
     }
   });
 
   async function pickRom() {
-    const sel = await open({
-      multiple: false,
-      filters: [{ name: "ROM", extensions: ["gb", "gbc", "gba", "nds", "3ds", "cxi"] }],
-    });
+    const sel = await open({ multiple: false, filters: [{ name: "ROM", extensions: ["gb", "gbc", "gba", "nds", "3ds", "cxi"] }] });
     if (typeof sel === "string") romPath = sel;
   }
-
   async function pickOutput() {
-    const sel = await save({
-      filters: [{ name: "ROM", extensions: ["gba", "nds", "gbc", "gb", "cxi"] }],
-    });
+    const sel = await save({ filters: [{ name: "ROM", extensions: ["gba", "nds", "gbc", "gb", "cxi"] }] });
     if (sel) outputPath = sel;
   }
-
-  async function generate() {
+  async function preview() {
     error = null;
-    try {
-      settingsString = (await encode(settings)).settingsString;
-    } catch (e) {
-      error = String(e);
-    }
+    try { settingsString = (await encode(settings)).settingsString; } catch (e) { error = String(e); }
   }
-
-  async function runRandomize() {
-    if (!romPath || !outputPath) {
-      error = "Pick a ROM and an output path first.";
-      return;
-    }
-    busy = true;
-    error = null;
-    log = "";
-    try {
-      log = (await randomize(romPath, outputPath, settings)).log;
-    } catch (e) {
-      error = String(e);
-    } finally {
-      busy = false;
-    }
+  async function run() {
+    if (!romPath || !outputPath) { error = "Pick a ROM and an output path first."; return; }
+    busy = true; error = null; log = "";
+    try { log = (await randomize(romPath, outputPath, settings)).log; } catch (e) { error = String(e); }
+    finally { busy = false; }
   }
 </script>
 
-<main>
-  <header>
-    <h1>Universal Pokémon Randomizer ZX</h1>
-    {#if engineVersion}
-      <span class="badge ok">engine {engineVersion} connected</span>
-    {:else if connError}
-      <span class="badge err">{connError}</span>
-    {:else}
-      <span class="badge">connecting…</span>
-    {/if}
-  </header>
-
-  <section class="card">
-    <h2>Base Statistics</h2>
-    <div class="radios">
-      {#each baseStatsOptions as opt}
-        <label><input type="radio" bind:group={settings.baseStatsMod} value={opt.value} /> {opt.label}</label>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">UPR-ZX</div>
+    <nav>
+      {#each TABS as tab}
+        <button class:active={active === tab.id} onclick={() => (active = tab.id)}>{tab.label}</button>
       {/each}
+    </nav>
+    <div class="conn">
+      {#if engineVersion}<span class="badge ok">engine {engineVersion}</span>
+      {:else if connError}<span class="badge err">{connError}</span>
+      {:else}<span class="badge">connecting…</span>{/if}
     </div>
-    <!-- Enabled is DERIVED from the mode — no manual enable/disable plumbing. -->
-    <label class="check" class:disabled={!statsRandomized}>
-      <input type="checkbox" bind:checked={settings.baseStatsFollowEvolutions} disabled={!statsRandomized} />
-      Follow evolutions
-    </label>
-    <label class="check">
-      <input type="checkbox" bind:checked={settings.standardizeExpCurves} /> Standardize EXP curves
-    </label>
-    <label class="check">
-      <input type="checkbox" bind:checked={settings.updateBaseStats} /> Update base stats to a later generation
-    </label>
-  </section>
+  </aside>
 
-  <section class="card">
-    <h2>Types</h2>
-    <div class="radios">
-      {#each typesOptions as opt}
-        <label><input type="radio" bind:group={settings.typesMod} value={opt.value} /> {opt.label}</label>
-      {/each}
+  <main>
+    <div class="content">
+      <ActiveTab {settings} />
     </div>
-    <label class="check" class:disabled={!typesRandomized}>
-      <input type="checkbox" bind:checked={settings.dualTypeOnly} disabled={!typesRandomized} /> Dual-type only
-    </label>
-  </section>
 
-  <section class="card">
-    <h2>Wild Pokémon</h2>
-    <label class="check">
-      <input type="checkbox" bind:checked={settings.wildForceFullyEvolved} /> Force fully evolved at level:
-    </label>
-    <div class="slider" class:disabled={!settings.wildForceFullyEvolved}>
-      <input
-        type="range"
-        min="30"
-        max="65"
-        bind:value={settings.wildForceFullyEvolvedLevel}
-        disabled={!settings.wildForceFullyEvolved}
-      />
-      <span>{settings.wildForceFullyEvolvedLevel}</span>
-    </div>
-  </section>
+    <footer class="runbar">
+      <div class="files">
+        <button onclick={pickRom}>Open ROM…</button>
+        <code>{romPath ?? "no ROM"}</code>
+        <button onclick={pickOutput}>Output…</button>
+        <code>{outputPath ?? "no output"}</code>
+      </div>
+      <div class="run-actions">
+        <button onclick={preview}>Preview string</button>
+        <button class="primary" onclick={run} disabled={busy}>{busy ? "Randomizing…" : "Randomize"}</button>
+      </div>
+    </footer>
 
-  <section class="card">
-    <h2>Run</h2>
-    <div class="files">
-      <button onclick={pickRom}>Open ROM…</button>
-      <code>{romPath ?? "no ROM selected"}</code>
-    </div>
-    <div class="files">
-      <button onclick={pickOutput}>Output to…</button>
-      <code>{outputPath ?? "no output selected"}</code>
-    </div>
-    <div class="actions">
-      <button onclick={generate}>Preview settings string</button>
-      <button class="primary" onclick={runRandomize} disabled={busy}>
-        {busy ? "Randomizing…" : "Randomize"}
-      </button>
-    </div>
-  </section>
-
-  {#if error}<p class="error">{error}</p>{/if}
-
-  {#if settingsString}
-    <section class="card">
-      <h2>Settings string (engine-encoded)</h2>
-      <code class="block">{settingsString}</code>
-    </section>
-  {/if}
-
-  {#if log}
-    <section class="card">
-      <h2>Randomization log</h2>
-      <pre>{log}</pre>
-    </section>
-  {/if}
-</main>
+    {#if error}<p class="error">{error}</p>{/if}
+    {#if settingsString}<code class="result">{settingsString}</code>{/if}
+    {#if log}<pre class="result">{log}</pre>{/if}
+  </main>
+</div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    font-family: system-ui, sans-serif;
-    background: #0f1117;
-    color: #e7e9ee;
+  :global(body) { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color: #e7e9ee; }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+  .sidebar { background: #14161f; border-right: 1px solid #272b38; display: flex; flex-direction: column; padding: 14px 10px; }
+  .brand { font-weight: 700; font-size: 1.1rem; padding: 6px 10px 14px; color: #4f7cff; }
+  nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  nav button {
+    text-align: left; background: none; border: none; color: #aab2c5;
+    padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 0.86rem;
   }
-  main {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  nav button:hover { background: #1d2130; color: #e7e9ee; }
+  nav button.active { background: #232a45; color: #fff; }
+  .conn { padding-top: 10px; }
+  main { display: flex; flex-direction: column; overflow: hidden; }
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .runbar {
+    border-top: 1px solid #272b38; padding: 12px 24px; display: flex;
+    align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: #14161f;
   }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  h1 { font-size: 1.4rem; margin: 0; }
-  h2 { font-size: 1rem; margin: 0 0 10px; color: #aab2c5; }
-  .card {
-    background: #1a1d27;
-    border: 1px solid #272b38;
-    border-radius: 12px;
-    padding: 16px 18px;
-  }
-  .radios { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-  .check { display: block; margin: 4px 0; }
-  .check.disabled, .slider.disabled { opacity: 0.4; }
-  .slider { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-  .files { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .actions { display: flex; gap: 10px; margin-top: 8px; }
-  button {
-    background: #272b38;
-    color: #e7e9ee;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 14px;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
+  .files { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .run-actions { display: flex; gap: 8px; }
+  button { background: #272b38; color: #e7e9ee; border: none; border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 0.85rem; }
   button:hover { background: #323748; }
   button.primary { background: #4f7cff; }
   button.primary:disabled { opacity: 0.5; cursor: default; }
-  .badge { font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; background: #272b38; }
+  .badge { font-size: 0.75rem; padding: 4px 9px; border-radius: 999px; background: #272b38; }
   .badge.ok { background: #16361f; color: #6fe39a; }
-  .badge.err { background: #3a1a1a; color: #ff8f8f; }
-  code { font-size: 0.8rem; color: #9aa3b8; word-break: break-all; }
-  code.block { display: block; background: #0f1117; padding: 10px; border-radius: 8px; }
-  pre { background: #0f1117; padding: 10px; border-radius: 8px; overflow: auto; max-height: 280px; font-size: 0.8rem; }
-  .error { color: #ff8f8f; }
+  .badge.err { background: #3a1a1a; color: #ff8f8f; font-size: 0.68rem; }
+  code { font-size: 0.78rem; color: #9aa3b8; word-break: break-all; }
+  .result { display: block; margin: 0 24px 16px; background: #0f1117; padding: 10px; border-radius: 8px; max-height: 220px; overflow: auto; }
+  .error { color: #ff8f8f; margin: 8px 24px; }
 </style>
