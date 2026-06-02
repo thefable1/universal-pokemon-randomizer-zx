@@ -35,6 +35,10 @@ dependencies {
 
     // The javac2 Ant task plus the form compiler it needs.
     javac2 "com.jetbrains.intellij.java:java-compiler-ant-tasks:${intellijFormsVersion}"
+
+    // Unit testing.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 // This project keeps Java sources AND resources together under src/ (not the
@@ -52,12 +56,23 @@ sourceSets {
             exclude '**/*.java'
         }
     }
+    // Tests live in a sibling test/ dir, NOT under src/ -- otherwise the main
+    // source set (srcDirs = ['src']) would also compile them.
+    test {
+        java {
+            srcDirs = ['test']
+        }
+    }
 }
 
 application {
     mainClass = 'com.dabomstew.pkrandom.newgui.NewRandomizerGUI'
     // Loading/saving ROMs is memory-heavy; match the bundled launcher scripts.
     applicationDefaultJvmArgs = ['-Xmx4096M']
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 // The GUI only enables 3DS (Gen 6/7) ROM loading when it sees this exact first
