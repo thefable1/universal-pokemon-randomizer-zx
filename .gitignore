@@ -30,6 +30,7 @@ manifest.mf
 /trainerclasses.txt
 /trainernames.txt
 /build/
+build/
 /.gradle/
 *.dsm
 *.dsv
