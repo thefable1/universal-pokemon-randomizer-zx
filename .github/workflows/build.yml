@@ -1,0 +1,33 @@
+name: Build
+
+# Gate the release branch: every push to dev and every PR into master/dev must
+# compile cleanly AND instrument the IntelliJ GUI forms (the javac2 step in
+# build.gradle). Nothing reaches master unless this passes.
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Temurin 21 (LTS): runs Gradle 9.5.1 and compiles the project's Java 11
+      # bytecode target. Stable and always available on GitHub-hosted runners.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # `build` compiles, runs the javac2 form instrumentation, packages the jar
+      # and runs the test suite (no-op until tests are added).
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
