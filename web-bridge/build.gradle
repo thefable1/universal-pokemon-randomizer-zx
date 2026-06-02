@@ -1,0 +1,31 @@
+// Headless JSON HTTP bridge over the randomizer engine.
+//
+// Separate module from the engine and the Swing GUI: it only DEPENDS on the
+// engine (root project) for Settings/Randomizer/RomHandler, and adds a tiny
+// HTTP server (JDK built-in) + Gson for JSON. This is what a Tauri+Svelte
+// frontend communicates with.
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+    // The engine transitively pulls the IntelliJ forms runtime; resolve it here.
+    maven { url = uri('https://www.jetbrains.com/intellij-repository/releases') }
+    maven { url = uri('https://cache-redirector.jetbrains.com/intellij-dependencies') }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies {
+    implementation project(':')
+    implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+application {
+    mainClass = 'com.dabomstew.pkrandom.bridge.BridgeServer'
+}

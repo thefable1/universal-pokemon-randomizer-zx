@@ -1,1 +1,6 @@
 rootProject.name = 'universal-pokemon-randomizer-zx'
+
+// Headless JSON HTTP bridge over the engine. This is the integration layer a
+// Tauri+Svelte (or any web) frontend talks to. Build/run with:
+//   ./gradlew :web-bridge:run
+include('web-bridge')
