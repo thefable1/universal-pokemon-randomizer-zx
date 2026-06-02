@@ -30,6 +30,7 @@ manifest.mf
 /trainerclasses.txt
 /trainernames.txt
 /build/
+/.gradle/
 *.dsm
 *.dsv
 build_eclipse.xml

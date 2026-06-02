@@ -1,0 +1,113 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.dabomstew'
+version = '4.6.1'
+
+// The codebase is Java 8-era. Compile to Java 11 bytecode: it accepts all the
+// existing source and runs on any modern JRE (including the JDK 26 on this box).
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+    // IntelliJ GUI-form compiler ('javac2' Ant task) + the form runtime classes.
+    maven { url = uri('https://www.jetbrains.com/intellij-repository/releases') }
+    // Transitive deps of the form compiler (ASM, etc.).
+    maven { url = uri('https://cache-redirector.jetbrains.com/intellij-dependencies') }
+}
+
+// IntelliJ artifact version used only for compiling/instrumenting the .form files.
+ext.intellijFormsVersion = '223.8617.56'
+
+configurations {
+    // Classpath for the javac2 Ant task (compiles Java AND instruments .form files).
+    javac2
+}
+
+dependencies {
+    // Runtime layout managers / spacers referenced by the instrumented GUI classes.
+    implementation "com.jetbrains.intellij.java:java-gui-forms-rt:${intellijFormsVersion}"
+
+    // The javac2 Ant task plus the form compiler it needs.
+    javac2 "com.jetbrains.intellij.java:java-compiler-ant-tasks:${intellijFormsVersion}"
+}
+
+// This project keeps Java sources AND resources together under src/ (not the
+// Maven src/main/java + src/main/resources layout). Map both onto src/.
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src']
+        }
+        resources {
+            srcDirs = ['src']
+            // Everything that isn't Java source is a runtime resource:
+            // .ini offset tables, .tbl text tables, .ips patches, .properties,
+            // images and .form files.
+            exclude '**/*.java'
+        }
+    }
+}
+
+application {
+    mainClass = 'com.dabomstew.pkrandom.newgui.NewRandomizerGUI'
+    // Loading/saving ROMs is memory-heavy; match the bundled launcher scripts.
+    applicationDefaultJvmArgs = ['-Xmx4096M']
+}
+
+// The GUI only enables 3DS (Gen 6/7) ROM loading when it sees this exact first
+// argument -- the bundled launcher passes it. Forward it so `./gradlew run`
+// behaves like a launcher-started instance (Gen 1-5 work either way).
+tasks.named('run') {
+    args 'please-use-the-launcher'
+}
+
+// --- GUI form instrumentation ------------------------------------------------
+// Plain javac doesn't understand IntelliJ .form files, so a normal compile
+// produces a GUI whose components are never constructed. After Gradle's compile,
+// recompile + instrument every source with the javac2 Ant task: it injects the
+// component-construction code declared in the .form files into the .class files.
+compileJava {
+    options.encoding = 'UTF-8'
+    doLast {
+        ant.taskdef(
+            name: 'javac2',
+            classname: 'com.intellij.ant.Javac2',
+            classpath: configurations.javac2.asPath
+        )
+        ant.javac2(
+            destdir: destinationDirectory.get().asFile.absolutePath,
+            source: '11',
+            target: '11',
+            encoding: 'UTF-8',
+            includeAntRuntime: false,
+            fork: true
+        ) {
+            src { pathelement(location: 'src') }
+            classpath { pathelement(path: configurations.compileClasspath.asPath) }
+        }
+    }
+}
+
+// --- Standalone runnable JAR -------------------------------------------------
+// `./gradlew fatJar` -> build/libs/universal-pokemon-randomizer-zx-4.6.1-all.jar
+// Run with: java -Xmx4096M -jar <that jar>
+tasks.register('fatJar', Jar) {
+    group = 'build'
+    description = 'Builds a self-contained runnable JAR with all classes and resources.'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
