@@ -593,6 +593,12 @@ public class Randomizer {
                 break;
         }
 
+        // Applied after the wild mode so it works even when wilds are otherwise unchanged.
+        if (settings.isWildForceFullyEvolved()) {
+            romHandler.forceFullyEvolvedWildPokes(settings);
+            wildsChanged = true;
+        }
+
         if (wildsChanged) {
             logWildPokemonChanges(log);
         } else {

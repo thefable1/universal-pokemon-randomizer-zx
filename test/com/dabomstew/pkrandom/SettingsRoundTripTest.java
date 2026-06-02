@@ -58,6 +58,8 @@ public class SettingsRoundTripTest {
         original.setMovesetsGoodDamagingPercent(50);
         original.setBlockWildLegendaries(true);
         original.setUpdateMoves(true);
+        original.setWildForceFullyEvolved(true);
+        original.setWildForceFullyEvolvedLevel(45);
 
         String firstPass = original.toString();
         Settings restored = Settings.fromString(firstPass);
@@ -68,6 +70,8 @@ public class SettingsRoundTripTest {
         assertEquals(50, restored.getMovesetsGoodDamagingPercent(), "good damaging move percent");
         assertTrue(restored.isBlockWildLegendaries(), "block wild legendaries");
         assertTrue(restored.isUpdateMoves(), "update moves");
+        assertTrue(restored.isWildForceFullyEvolved(), "wild force fully evolved");
+        assertEquals(45, restored.getWildForceFullyEvolvedLevel(), "wild force fully evolved level");
 
         // And the format itself is stable.
         assertEquals(firstPass, restored.toString(),

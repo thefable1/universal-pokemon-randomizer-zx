@@ -49,7 +49,7 @@ public class Settings {
 
     public static final int VERSION = Version.VERSION;
 
-    public static final int LENGTH_OF_SETTINGS_DATA = 51;
+    public static final int LENGTH_OF_SETTINGS_DATA = 52;
 
     private CustomNamesSet customNames;
 
@@ -211,6 +211,8 @@ public class Settings {
     private boolean wildLevelsModified;
     private int wildLevelModifier = 0;
     private boolean allowWildAltFormes;
+    private boolean wildForceFullyEvolved;
+    private int wildForceFullyEvolvedLevel = 30;
 
     public enum StaticPokemonMod {
         UNCHANGED, RANDOM_MATCHING, COMPLETELY_RANDOM, SIMILAR_STRENGTH
@@ -582,6 +584,9 @@ public class Settings {
         // 50 elite four unique pokemon (3 bits) + catch rate level (3 bits)
         out.write(eliteFourUniquePokemonNumber | ((minimumCatchRateLevel - 1) << 3));
 
+        // 51 wild pokemon force fully evolved (flag) + level (7 bits)
+        out.write((wildForceFullyEvolved ? 0x80 : 0) | wildForceFullyEvolvedLevel);
+
         try {
             byte[] romName = this.romName.getBytes("US-ASCII");
             out.write(romName.length);
@@ -870,6 +875,9 @@ public class Settings {
 
         settings.setEliteFourUniquePokemonNumber(data[50] & 0x7);
         settings.setMinimumCatchRateLevel(((data[50] & 0x38) >> 3) + 1);
+
+        settings.setWildForceFullyEvolved(restoreState(data[51], 7));
+        settings.setWildForceFullyEvolvedLevel(data[51] & 0x7F);
 
         int romNameLength = data[LENGTH_OF_SETTINGS_DATA] & 0xFF;
         String romName = new String(data, LENGTH_OF_SETTINGS_DATA + 1, romNameLength, "US-ASCII");
@@ -1868,6 +1876,22 @@ public class Settings {
 
     public void setAllowWildAltFormes(boolean allowWildAltFormes) {
         this.allowWildAltFormes = allowWildAltFormes;
+    }
+
+    public boolean isWildForceFullyEvolved() {
+        return wildForceFullyEvolved;
+    }
+
+    public void setWildForceFullyEvolved(boolean wildForceFullyEvolved) {
+        this.wildForceFullyEvolved = wildForceFullyEvolved;
+    }
+
+    public int getWildForceFullyEvolvedLevel() {
+        return wildForceFullyEvolvedLevel;
+    }
+
+    public void setWildForceFullyEvolvedLevel(int wildForceFullyEvolvedLevel) {
+        this.wildForceFullyEvolvedLevel = wildForceFullyEvolvedLevel;
     }
 
     public StaticPokemonMod getStaticPokemonMod() {

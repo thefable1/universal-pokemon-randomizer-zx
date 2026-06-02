@@ -1291,6 +1291,30 @@ public abstract class AbstractRomHandler implements RomHandler {
         }
     }
 
+    @Override
+    public void forceFullyEvolvedWildPokes(Settings settings) {
+        int minLevel = settings.getWildForceFullyEvolvedLevel();
+
+        checkPokemonRestrictions();
+        List<EncounterSet> currentEncounters = this.getEncounters(true);
+        // The area index is fed to fullyEvolve so split evolutions are chosen
+        // deterministically but vary from area to area (same approach as trainers).
+        int areaIndex = 0;
+        for (EncounterSet area : currentEncounters) {
+            for (Encounter enc : area.encounters) {
+                if (Math.max(enc.level, enc.maxLevel) >= minLevel) {
+                    Pokemon newPokemon = fullyEvolve(enc.pokemon, areaIndex);
+                    if (newPokemon != enc.pokemon) {
+                        enc.pokemon = newPokemon;
+                        setFormeForEncounter(enc, newPokemon);
+                    }
+                }
+            }
+            areaIndex++;
+        }
+        setEncounters(true, currentEncounters);
+    }
+
     private void enhanceRandomEncountersORAS(List<EncounterSet> collapsedEncounters, Settings settings) {
         boolean catchEmAll = settings.getWildPokemonRestrictionMod() == Settings.WildPokemonRestrictionMod.CATCH_EM_ALL;
         boolean typeThemed = settings.getWildPokemonRestrictionMod() == Settings.WildPokemonRestrictionMod.TYPE_THEME_AREAS;

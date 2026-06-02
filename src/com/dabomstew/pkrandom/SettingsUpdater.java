@@ -317,6 +317,12 @@ public class SettingsUpdater {
             dataBlock[50] |= ((oldMinimumCatchRate - 1) << 3);
         }
 
+        if (oldVersion < 323) {
+            // 51 wild pokemon "force fully evolved" flag + level.
+            // Default: disabled, level 30 (matches Settings.wildForceFullyEvolvedLevel).
+            insertExtraByte(51, (byte) 30);
+        }
+
         // fix checksum
         CRC32 checksum = new CRC32();
         checksum.update(dataBlock, 0, actualDataLength - 8);

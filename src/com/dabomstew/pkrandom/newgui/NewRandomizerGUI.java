@@ -236,6 +236,8 @@ public class NewRandomizerGUI {
     private JCheckBox stpSwapMegaEvosCheckBox;
     private JCheckBox tpSwapMegaEvosCheckBox;
     private JCheckBox wpAllowAltFormesCheckBox;
+    private JCheckBox wpForceFullyEvolvedAtCheckBox;
+    private JSlider wpForceFullyEvolvedAtSlider;
     private JCheckBox tpDoubleBattleModeCheckBox;
     private JCheckBox tpBossTrainersCheckBox;
     private JCheckBox tpImportantTrainersCheckBox;
@@ -449,6 +451,7 @@ public class NewRandomizerGUI {
         wpArea1To1RadioButton.addActionListener(e -> enableOrDisableSubControls());
         wpGlobal1To1RadioButton.addActionListener(e -> enableOrDisableSubControls());
         wpSetMinimumCatchRateCheckBox.addActionListener(e -> enableOrDisableSubControls());
+        wpForceFullyEvolvedAtCheckBox.addActionListener(e -> enableOrDisableSubControls());
         wpRandomizeHeldItemsCheckBox.addActionListener(e -> enableOrDisableSubControls());
         wpPercentageLevelModifierCheckBox.addActionListener(e -> enableOrDisableSubControls());
         tmUnchangedRadioButton.addActionListener(e -> enableOrDisableSubControls());
@@ -1605,6 +1608,8 @@ public class NewRandomizerGUI {
         wpPercentageLevelModifierCheckBox.setSelected(settings.isWildLevelsModified());
         wpPercentageLevelModifierSlider.setValue(settings.getWildLevelModifier());
         wpAllowAltFormesCheckBox.setSelected(settings.isAllowWildAltFormes());
+        wpForceFullyEvolvedAtCheckBox.setSelected(settings.isWildForceFullyEvolved());
+        wpForceFullyEvolvedAtSlider.setValue(settings.getWildForceFullyEvolvedLevel());
 
         stpUnchangedRadioButton.setSelected(settings.getStaticPokemonMod() == Settings.StaticPokemonMod.UNCHANGED);
         stpSwapLegendariesSwapStandardsRadioButton.setSelected(settings.getStaticPokemonMod() == Settings.StaticPokemonMod.RANDOM_MATCHING);
@@ -1827,6 +1832,8 @@ public class NewRandomizerGUI {
         settings.setWildLevelsModified(wpPercentageLevelModifierCheckBox.isSelected());
         settings.setWildLevelModifier(wpPercentageLevelModifierSlider.getValue());
         settings.setAllowWildAltFormes(wpAllowAltFormesCheckBox.isSelected() && wpAllowAltFormesCheckBox.isVisible());
+        settings.setWildForceFullyEvolved(wpForceFullyEvolvedAtCheckBox.isSelected());
+        settings.setWildForceFullyEvolvedLevel(wpForceFullyEvolvedAtSlider.getValue());
 
         settings.setStaticPokemonMod(stpUnchangedRadioButton.isSelected(), stpSwapLegendariesSwapStandardsRadioButton.isSelected(),
                 stpRandomCompletelyRadioButton.isSelected(), stpRandomSimilarStrengthRadioButton.isSelected());
@@ -2480,6 +2487,12 @@ public class NewRandomizerGUI {
         wpAllowAltFormesCheckBox.setVisible(true);
         wpAllowAltFormesCheckBox.setEnabled(false);
         wpAllowAltFormesCheckBox.setSelected(false);
+        wpForceFullyEvolvedAtCheckBox.setVisible(true);
+        wpForceFullyEvolvedAtCheckBox.setEnabled(false);
+        wpForceFullyEvolvedAtCheckBox.setSelected(false);
+        wpForceFullyEvolvedAtSlider.setVisible(true);
+        wpForceFullyEvolvedAtSlider.setEnabled(false);
+        wpForceFullyEvolvedAtSlider.setValue(wpForceFullyEvolvedAtSlider.getMinimum());
         tmUnchangedRadioButton.setVisible(true);
         tmUnchangedRadioButton.setEnabled(false);
         tmUnchangedRadioButton.setSelected(false);
@@ -2910,6 +2923,7 @@ public class NewRandomizerGUI {
 
             wpUseTimeBasedEncountersCheckBox.setVisible(romHandler.hasTimeBasedEncounters());
             wpSetMinimumCatchRateCheckBox.setEnabled(true);
+            wpForceFullyEvolvedAtCheckBox.setEnabled(true);
             wpRandomizeHeldItemsCheckBox.setEnabled(true);
             wpRandomizeHeldItemsCheckBox.setVisible(pokemonGeneration != 1);
             wpBanBadItemsCheckBox.setVisible(pokemonGeneration != 1);
@@ -3517,6 +3531,13 @@ public class NewRandomizerGUI {
         } else {
             wpSetMinimumCatchRateSlider.setEnabled(false);
             wpSetMinimumCatchRateSlider.setValue(0);
+        }
+
+        if (wpForceFullyEvolvedAtCheckBox.isSelected()) {
+            wpForceFullyEvolvedAtSlider.setEnabled(true);
+        } else {
+            wpForceFullyEvolvedAtSlider.setEnabled(false);
+            wpForceFullyEvolvedAtSlider.setValue(wpForceFullyEvolvedAtSlider.getMinimum());
         }
 
         if (wpPercentageLevelModifierCheckBox.isSelected()) {

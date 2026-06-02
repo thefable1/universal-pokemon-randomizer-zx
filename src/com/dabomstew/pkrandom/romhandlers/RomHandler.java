@@ -225,6 +225,8 @@ public interface RomHandler {
 
     void onlyChangeWildLevels(Settings settings);
 
+    void forceFullyEvolvedWildPokes(Settings settings);
+
     boolean hasTimeBasedEncounters();
 
     boolean hasWildAltFormes();

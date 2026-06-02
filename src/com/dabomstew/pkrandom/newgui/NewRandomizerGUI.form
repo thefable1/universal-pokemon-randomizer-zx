@@ -2448,6 +2448,35 @@
                       <toolTipText resource-bundle="com/dabomstew/pkrandom/newgui/Bundle" key="GUI.wpAllowAltFormesCheckBox.toolTipText"/>
                     </properties>
                   </component>
+                  <component id="a1b2c" class="javax.swing.JCheckBox" binding="wpForceFullyEvolvedAtCheckBox">
+                    <constraints>
+                      <grid row="10" column="3" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                      <gridbag weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <enabled value="false"/>
+                      <text resource-bundle="com/dabomstew/pkrandom/newgui/Bundle" key="GUI.wpForceFullyEvolvedAtCheckBox.text"/>
+                      <toolTipText resource-bundle="com/dabomstew/pkrandom/newgui/Bundle" key="GUI.wpForceFullyEvolvedAtCheckBox.toolTipText"/>
+                    </properties>
+                  </component>
+                  <component id="a1b2d" class="javax.swing.JSlider" binding="wpForceFullyEvolvedAtSlider">
+                    <constraints>
+                      <grid row="10" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="9" fill="1" indent="0" use-parent-layout="false"/>
+                      <gridbag top="0" left="10" bottom="0" right="0" weightx="0.0" weighty="0.0"/>
+                    </constraints>
+                    <properties>
+                      <enabled value="false"/>
+                      <majorTickSpacing value="5"/>
+                      <maximum value="65"/>
+                      <minimum value="30"/>
+                      <minorTickSpacing value="1"/>
+                      <paintLabels value="true"/>
+                      <paintTicks value="true"/>
+                      <snapToTicks value="true"/>
+                      <toolTipText resource-bundle="com/dabomstew/pkrandom/newgui/Bundle" key="GUI.wpForceFullyEvolvedAtSlider.toolTipText"/>
+                      <value value="30"/>
+                    </properties>
+                  </component>
                 </children>
               </grid>
               <hspacer id="731f9">
