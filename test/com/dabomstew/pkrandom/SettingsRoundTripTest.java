@@ -2,6 +2,12 @@ package com.dabomstew.pkrandom;
 
 import com.dabomstew.pkrandom.pokemon.ExpCurve;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,5 +72,28 @@ public class SettingsRoundTripTest {
         // And the format itself is stable.
         assertEquals(firstPass, restored.toString(),
                 "Re-serializing restored settings must match the original string");
+    }
+
+    @Test
+    void binaryWriteReadRoundTrip(@TempDir Path tmpDir) throws Exception {
+        // Exercises the version-prefixed binary format used by .rnqs preset files:
+        // write() prepends VERSION + length, read() validates them and rebuilds.
+        Settings original = baseSettings();
+        original.setBlockWildLegendaries(true);
+        original.setMovesetsGoodDamagingPercent(75);
+
+        File file = tmpDir.resolve("preset.rnqs").toFile();
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            original.write(out);
+        }
+
+        Settings restored;
+        try (FileInputStream in = new FileInputStream(file)) {
+            restored = Settings.read(in);
+        }
+
+        assertTrue(restored.isBlockWildLegendaries(), "block wild legendaries survives binary round-trip");
+        assertEquals(75, restored.getMovesetsGoodDamagingPercent(), "percent survives binary round-trip");
+        assertEquals(original.toString(), restored.toString(), "binary round-trip is lossless");
     }
 }
