@@ -32,11 +32,19 @@
   let busy = $state(false);
 
   onMount(async () => {
-    try {
-      engineVersion = (await health()).engineVersion;
-    } catch {
-      connError = "Bridge offline — run: ./gradlew :web-bridge:run";
+    // The bundled engine (a JVM) takes a couple seconds to boot while the webview
+    // loads instantly, so poll instead of checking once. ~30s budget.
+    connError = "Starting engine…";
+    for (let attempt = 0; attempt < 40; attempt++) {
+      try {
+        engineVersion = (await health()).engineVersion;
+        connError = null;
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 750));
+      }
     }
+    connError = "Engine didn't start. In dev, run: ./gradlew :web-bridge:run";
   });
 
   async function pickRom() {

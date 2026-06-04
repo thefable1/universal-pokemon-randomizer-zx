@@ -21,16 +21,27 @@ NAME="$(basename "$APPDIR" .AppDir)"
 PLUGIN="$HOME/.cache/tauri/linuxdeploy-plugin-appimage.AppImage"
 [ -f "$PLUGIN" ] || { echo "Cached plugin missing ($PLUGIN). Run 'pnpm tauri build' once to download it."; exit 1; }
 
-echo ">> Relativizing absolute symlinks in $(basename "$APPDIR")…"
+# tauri/linuxdeploy leave absolute symlinks pointing at the BUILD path (e.g.
+# /home/runner/.../tauri-ui.AppDir/...). On any other machine those are broken,
+# and the AppImage AppRun segfaults in getline() when it can't open the .desktop.
+# Relativize ANY absolute symlink that points inside the AppDir, matched by the
+# AppDir's own name so it's robust to non-canonical paths (e.g. scripts/../).
+echo ">> Relativizing absolute symlinks in $NAME.AppDir…"
 find "$APPDIR" -type l | while read -r link; do
   tgt="$(readlink "$link")"
   case "$tgt" in
-    "$APPDIR"/*) rel="${tgt#"$APPDIR"/}"; ln -sf "$rel" "$link"; echo "   $(basename "$link") -> $rel";;
+    /*"/$NAME.AppDir/"*)
+      rel="${tgt##*"/$NAME.AppDir/"}"   # everything after .../<AppDir>/
+      ln -sf "$rel" "$link"
+      echo "   $(basename "$link") -> $rel" ;;
   esac
 done
 
 echo ">> Running linuxdeploy-plugin-appimage on $NAME.AppDir…"
 cd "$APPIMAGE_DIR"
+# Drop any AppImage tauri/linuxdeploy already emitted (it has the broken absolute
+# symlinks); we ship only the relativized one the plugin produces below.
+rm -f ./*.AppImage
 export ARCH="${ARCH:-x86_64}"
 export APPIMAGE_EXTRACT_AND_RUN=1   # let the plugin run even without FUSE
 "$PLUGIN" --appdir="./$NAME.AppDir"

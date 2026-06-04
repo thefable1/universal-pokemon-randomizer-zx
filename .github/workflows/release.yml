@@ -1,14 +1,22 @@
 name: Release
 
-# Push a tag like `v4.6.2` to build all platforms and publish a GitHub Release.
-# `workflow_dispatch` runs it manually (artifacts only, no release).
+# Tag push (v*) or manual dispatch builds all platforms and publishes a DRAFT
+# release. Linux uses the plugin-bypass for AppImage: `tauri build` assembles the
+# AppDir (its bundled linuxdeploy chokes on our embedded JRE), then
+# build-appimage.sh packages the AppDir with the appimage plugin directly --
+# the same technique that works locally and in Zephyr's local scripts.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for this release (e.g. 4.6.2)'
+        required: true
+        default: '4.6.2'
 
 permissions:
-  contents: write # needed to create the release
+  contents: write
 
 jobs:
   build:
@@ -16,43 +24,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux x64 — AppImage (+ .deb). 22.04's older glibc = wider portability.
-          - os: ubuntu-22.04
+          - platform: ubuntu-24.04
+            label: Linux
+            target: ''
             artifacts: |
               tauri-ui/src-tauri/target/release/bundle/appimage/*.AppImage
               tauri-ui/src-tauri/target/release/bundle/deb/*.deb
-          # Windows x64 — NSIS installer (+ MSI).
-          - os: windows-latest
+              tauri-ui/src-tauri/target/release/bundle/rpm/*.rpm
+          - platform: windows-latest
+            label: Windows
+            target: ''
             artifacts: |
               tauri-ui/src-tauri/target/release/bundle/nsis/*-setup.exe
               tauri-ui/src-tauri/target/release/bundle/msi/*.msi
-          # macOS Apple Silicon (arm64) — DMG.
-          - os: macos-14
-            artifacts: tauri-ui/src-tauri/target/release/bundle/dmg/*.dmg
-          # macOS Intel (x64) — DMG.
-          - os: macos-13
-            artifacts: tauri-ui/src-tauri/target/release/bundle/dmg/*.dmg
+          - platform: macos-latest
+            label: macOS (Apple Silicon)
+            target: aarch64-apple-darwin
+            artifacts: tauri-ui/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          - platform: macos-latest
+            label: macOS (Intel)
+            target: x86_64-apple-darwin
+            artifacts: tauri-ui/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform }}
+    name: Build (${{ matrix.label }})
     steps:
       - uses: actions/checkout@v4
 
-      # Linux-only: Tauri build deps + FUSE (AppImage) + file (linuxdeploy).
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-22.04'
+      - name: Resolve version
+        id: ver
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
-            libayatana-appindicator3-dev patchelf libfuse2 file desktop-file-utils
-
-      # JDK provides javac/jlink/jdeps for the engine fat jar + the per-OS JRE.
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -66,44 +73,80 @@ jobs:
           cache: pnpm
           cache-dependency-path: tauri-ui/pnpm-lock.yaml
 
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri-ui/src-tauri
 
+      # Pin WebKitGTK 2.44.0: newer versions crash wry/Tauri at runtime.
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libappindicator3-dev librsvg2-dev libudev-dev patchelf rpm file \
+            libwebkit2gtk-4.1-0=2.44.0-2 \
+            libwebkit2gtk-4.1-dev=2.44.0-2 \
+            libjavascriptcoregtk-4.1-0=2.44.0-2 \
+            libjavascriptcoregtk-4.1-dev=2.44.0-2 \
+            gir1.2-javascriptcoregtk-4.1=2.44.0-2 \
+            gir1.2-webkit2-4.1=2.44.0-2
+
       - name: Install frontend dependencies
         working-directory: tauri-ui
         run: pnpm install --frozen-lockfile
 
-      # `tauri build` runs prep:bridge (engine fat jar + jlink'd JRE for THIS OS)
-      # via beforeBuildCommand, then bundles. On Linux the linuxdeploy step can
-      # fail; the AppDir + .deb exist first, so `pnpm appimage` finishes the
-      # AppImage from the cached plugin. Windows/macOS bundle natively.
+      - name: Stamp version
+        shell: bash
+        working-directory: tauri-ui
+        run: |
+          pnpm pkg set version=${{ steps.ver.outputs.version }}
+          sed -i.bak 's/"version": "[^"]*"/"version": "${{ steps.ver.outputs.version }}"/' src-tauri/tauri.conf.json
+          sed -i.bak 's/^version = "[^"]*"/version = "${{ steps.ver.outputs.version }}"/' src-tauri/Cargo.toml
+          rm -f src-tauri/tauri.conf.json.bak src-tauri/Cargo.toml.bak
+
+      # `tauri build` runs prep:bridge (engine fat jar + jlink'd JRE) via
+      # beforeBuildCommand. On Linux we attempt deb/rpm/appimage; linuxdeploy
+      # fails on the embedded JRE, but the AppDir is assembled first, so
+      # build-appimage.sh then packages it with the appimage plugin directly.
       - name: Build
         working-directory: tauri-ui
         shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1 # no FUSE on runners
+          NO_STRIP: true
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            pnpm tauri build || echo "::warning::tauri build exited non-zero (likely linuxdeploy); finishing AppImage manually"
+            pnpm tauri build --bundles deb,rpm,appimage || echo "::warning::linuxdeploy failed (expected); packaging AppImage via plugin"
             pnpm appimage
           else
-            pnpm tauri build
+            pnpm tauri build ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
           fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: upr-zx-${{ matrix.os }}
+          name: upr-zx-${{ matrix.label }}
           path: ${{ matrix.artifacts }}
           if-no-files-found: error
 
-      # On a tag push, attach this OS's artifacts to the (shared) GitHub Release.
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Publish to release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Universal Pokémon Randomizer ZX v${{ steps.ver.outputs.version }}
+          draft: true
           files: ${{ matrix.artifacts }}
-          generate_release_notes: true
+          fail_on_unmatched_files: false
