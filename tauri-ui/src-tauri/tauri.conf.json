@@ -4,17 +4,18 @@
   "version": "0.1.0",
   "identifier": "com.dabomstew.uprzx",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm prep:bridge && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm prep:bridge && pnpm build",
     "frontendDist": "../build"
   },
   "app": {
     "windows": [
       {
-        "title": "Universal Pokémon Randomizer ZX",
+        "title": "Universal Pok\u00e9mon Randomizer ZX",
         "width": 1000,
-        "height": 760
+        "height": 760,
+        "decorations": false
       }
     ],
     "security": {
@@ -30,6 +31,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "resources/jre": "jre",
+      "resources/web-bridge.jar": "web-bridge.jar"
+    }
   }
 }

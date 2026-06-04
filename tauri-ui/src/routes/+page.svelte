@@ -3,6 +3,7 @@
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { encode, randomize, health, defaultSettings, type SettingsRequest } from "$lib/bridge";
   import { TABS } from "$lib/options";
+  import Titlebar from "$lib/ui/Titlebar.svelte";
   import Traits from "$lib/tabs/Traits.svelte";
   import Starters from "$lib/tabs/Starters.svelte";
   import Moves from "$lib/tabs/Moves.svelte";
@@ -58,6 +59,8 @@
   }
 </script>
 
+<div class="window">
+<Titlebar />
 <div class="app">
   <aside class="sidebar">
     <div class="brand">UPR-ZX</div>
@@ -96,10 +99,23 @@
     {#if log}<pre class="result">{log}</pre>{/if}
   </main>
 </div>
+</div>
 
 <style>
-  :global(body) { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color: #e7e9ee; }
-  .app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+  :global(body) {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #0f1117;
+    color: #e7e9ee;
+    /* Behave like a native app: don't let the UI chrome be text-selected. */
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  /* Keep the generated outputs selectable so they can be copied. */
+  .result { user-select: text; -webkit-user-select: text; }
+  .window { display: flex; flex-direction: column; height: 100vh; }
+  .app { flex: 1; display: grid; grid-template-columns: 232px 1fr; overflow: hidden; min-height: 0; }
   .sidebar { background: #14161f; border-right: 1px solid #272b38; display: flex; flex-direction: column; padding: 14px 10px; }
   .brand { font-weight: 700; font-size: 1.1rem; padding: 6px 10px 14px; color: #4f7cff; }
   nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }

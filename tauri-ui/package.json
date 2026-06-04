@@ -10,8 +10,9 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri",
-    "app": "WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev",
-    "app:x11": "GDK_BACKEND=x11 WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev"
+    "app": "tauri dev",
+    "app:x11": "GDK_BACKEND=x11 tauri dev",
+    "prep:bridge": "bash scripts/prep-bridge.sh"
   },
   "license": "MIT",
   "dependencies": {
