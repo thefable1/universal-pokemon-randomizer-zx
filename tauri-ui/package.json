@@ -12,7 +12,9 @@
     "tauri": "tauri",
     "app": "tauri dev",
     "app:x11": "GDK_BACKEND=x11 tauri dev",
-    "prep:bridge": "bash scripts/prep-bridge.sh"
+    "prep:bridge": "node scripts/prep-bridge.mjs",
+    "appimage": "bash scripts/build-appimage.sh",
+    "dist": "tauri build; bash scripts/build-appimage.sh"
   },
   "license": "MIT",
   "dependencies": {

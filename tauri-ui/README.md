@@ -63,13 +63,24 @@ Enable/disable is *derived* state (`$derived`), not hand-wired — e.g.
 
 ```bash
 cd tauri-ui
-pnpm tauri build
+pnpm dist      # = `tauri build` then `scripts/build-appimage.sh`
 ```
 
 `beforeBuildCommand` runs `prep:bridge` first, so the bundle includes the bridge
-jar **and a minimal JRE** (jlink'd, ~53 MB). The shipped app (AppImage/.deb/.dmg
-/.msi) is fully self-contained — **the end user does NOT need Java installed.**
-Requires a JDK on the *build* machine (for `jlink`/`jdeps`).
+jar **and a minimal JRE** (jlink'd, ~53 MB). The shipped app is fully
+self-contained — **the end user does NOT need Java installed.** Requires a JDK
+on the *build* machine (for `jlink`/`jdeps`).
+
+### AppImage: working around `failed to run linuxdeploy`
+
+On some systems Tauri's `linuxdeploy` step fails (`failed to run linuxdeploy`),
+but it still produces the `.AppDir`. `pnpm appimage` (run automatically by
+`pnpm dist`) finishes the job: it runs the cached
+`~/.cache/tauri/linuxdeploy-plugin-appimage` directly on the AppDir and
+relativizes the absolute symlinks Tauri leaves behind (so the AppImage is
+portable). Output: `src-tauri/target/release/bundle/appimage/tauri-ui-x86_64.AppImage`.
+
+So if `pnpm tauri build` errors at the AppImage step, just run `pnpm appimage`.
 
 ## Status / TODO
 
